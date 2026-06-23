@@ -30,6 +30,12 @@ async function run() {
     const donationRequestCollection = db.collection("donationRequest");
     console.log("Successfully Connected to MongoDB: lifedrop");
 
+    app.post("/donationRequest", async (req, res) => {
+      const requestData = req.body;
+      const result = await donationRequestCollection.insertOne(donationRequest);
+      res.json(result);
+    });
+
     
   } finally {
     // await client.close();
