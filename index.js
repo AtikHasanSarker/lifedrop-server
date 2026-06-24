@@ -27,12 +27,17 @@ async function run() {
   try {
     await client.connect();
     const db = client.db("lifedrop");
-    const donationRequestCollection = db.collection("donationRequest");
+    const donationRequestCollection = db.collection("donation-requests");
     console.log("Successfully Connected to MongoDB: lifedrop");
 
-    app.post("/donationRequest", async (req, res) => {
+    app.post("/donation-requests", async (req, res) => {
       const requestData = req.body;
-      const result = await donationRequestCollection.insertOne(donationRequest);
+      const result = await donationRequestCollection.insertOne(requestData);
+      res.json(result);
+    });
+
+    app.get("/donation-requests", async (req, res) => {
+      const result = await donationRequestCollection.find().toArray();
       res.json(result);
     });
 
