@@ -41,12 +41,31 @@ async function run() {
       res.json(result);
     });
 
+    
     app.get("/donation-requests/:id", async (req, res) => {
       const id = req.params.id;
       const result = await donationRequestCollection.findOne({ _id: new ObjectId(id) });
       res.json(result);
     });
-      
+    
+    app.patch("/donation-requests/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await donationRequestCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: req.body },
+      );
+      res.json(result);
+    });
+    
+    app.get("/my-donation-requests/:userId", async (req, res) => {
+      const { userId } = req.params;
+      const query = {
+        userId: userId,
+      };
+
+      const myRequests = await donationRequestCollection.find(query).toArray();
+      res.json(myRequests);
+    });
 
     
   } finally {
