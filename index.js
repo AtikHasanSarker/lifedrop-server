@@ -38,7 +38,6 @@ const verifyToken = async (req, res, next) => {
 
   try {
     const { payload } = await jwtVerify(token, JWKS);
-    console.log("payload from jwt:", payload);
     next();
   } catch (error) {
     return res.status(403).json({ message: "Forbidden" });
@@ -47,7 +46,7 @@ const verifyToken = async (req, res, next) => {
 
 async function run() {
   try {
-    await client.connect();
+    // await client.connect();
     const db = client.db("lifedrop");
     console.log("Successfully Connected to MongoDB: lifedrop");
     const donationRequestCollection = db.collection("donation-requests");
@@ -101,7 +100,7 @@ async function run() {
       }
     });
 
-    app.get("/funding", async (req, res) => {
+    app.get("/funding", verifyToken, async (req, res) => {
       const result = await fundingCollection.find().toArray();
       res.json(result);
     });
@@ -112,13 +111,13 @@ async function run() {
     });
 
 
-    app.get("/donation-requests/:id", async (req, res) => {
+    app.get("/donation-requests/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const result = await donationRequestCollection.findOne({ _id: new ObjectId(id) });
       res.json(result);
     });
 
-    app.patch("/donation-requests/:id", async (req, res) => {
+    app.patch("/donation-requests/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const result = await donationRequestCollection.updateOne(
         { _id: new ObjectId(id) },
@@ -127,29 +126,68 @@ async function run() {
       res.json(result);
     });
 
-    app.patch("/public-donation-requests/:id", async (req, res) => {
+    app.patch(
+      "/public-donation-requests/:id",
+      verifyToken,
+      async (req, res) => {
+        const id = req.params.id;
+        const result = await donationRequestCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: req.body },
+        );
+        res.json(result);
+      },
+    );
+
+    app.delete("/donation-requests/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
-      const result = await donationRequestCollection.updateOne(
-        { _id: new ObjectId(id) },
-        { $set: req.body },
-      );
+      const result = await donationRequestCollection.deleteOne({
+        _id: new ObjectId(id),
+      });
       res.json(result);
     });
 
-    app.delete("/donation-requests/:id", async (req, res) => {
-      const id = req.params.id;
-      const result = await donationRequestCollection.deleteOne({ _id: new ObjectId(id) });
-      res.json(result);
+
+    app.get("/user-donation-requests/:userId", async (req, res) => {
+      const { userId } = req.params;
+      const query = {
+        userId: userId,
+      };
+      const myRequests = await donationRequestCollection.find(query).toArray();
+      res.json(myRequests);
     });
 
-    app.get("/my-donation-requests/:userId", async (req, res) => {
+
+    app.get("/my-donation-requests/:userId", verifyToken, async (req, res) => {
       const { userId } = req.params;
       const query = {
         userId: userId,
       };
 
-      const myRequests = await donationRequestCollection.find(query).toArray();
-      res.json(myRequests);
+      const page = parseInt(req.query.page);
+      const limit = parseInt(req.query.limit) || 10;
+
+      if (page) {
+        const skip = (page - 1) * limit;
+        const totalItems = await donationRequestCollection.countDocuments(query);
+        const totalPages = Math.ceil(totalItems / limit);
+        const myRequests = await donationRequestCollection
+          .find(query)
+          .skip(skip)
+          .limit(limit)
+          .toArray();
+
+        res.json({
+          data: myRequests,
+          currentPage: page,
+          totalPages: totalPages,
+          totalItems: totalItems,
+          limit: limit,
+        });
+      } else {
+        const myRequests = await donationRequestCollection.find(query).toArray();
+        res.json(myRequests);
+      }
     });
 
 
@@ -169,12 +207,12 @@ async function run() {
     });
 
     //for admin
-    app.get("/users", async (req, res) => {
+    app.get("/users", verifyToken, async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.json(result);
     });
 
-    app.patch("/users/:id", async (req, res) => {
+    app.patch("/users/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const result = await usersCollection.updateOne(
         { _id: new ObjectId(id) },
